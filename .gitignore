@@ -1,0 +1,9 @@
+# .gitignore
+.venv/
+__pycache__/
+temp_files/*
+!temp_files/.gitkeep
+*.qrp
+*.csv
+.env
+arquivos_temp/*S
