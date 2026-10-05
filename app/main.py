@@ -34,8 +34,14 @@ async def pagina_inicial():
             .card { background-color: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; width: 350px; }
             h2 { color: #333; margin-bottom: 10px; font-size: 22px; }
             p { color: #666; font-size: 14px; margin-bottom: 20px; }
-            input[type=file] { margin: 15px 0; padding: 10px; border: 1px dashed #ccc; width: 90%; cursor: pointer; }
-            .btn-blue { background-color: #007bff; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 16px; cursor: pointer; width: 100%; margin-bottom: 10px; }
+            
+            /* Estilos do novo botão de upload */
+            input[type="file"] { display: none; }
+            .custom-file-upload { border: 1px solid #ccc; display: inline-block; padding: 10px 15px; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; font-size: 14px; color: #333; transition: 0.3s; width: 85%; margin-top: 10px; }
+            .custom-file-upload:hover { background-color: #e2e6ea; border-color: #b3b3b3; }
+            .file-name { display: block; margin-top: 8px; font-size: 12px; color: #888; margin-bottom: 15px; height: 15px; }
+            
+            .btn-blue { background-color: #007bff; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 16px; cursor: pointer; width: 100%; }
             .btn-blue:hover { background-color: #0056b3; }
             .btn-green { background-color: #28a745; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 16px; cursor: pointer; width: 100%; }
             .btn-green:hover { background-color: #218838; }
@@ -47,7 +53,10 @@ async def pagina_inicial():
                 <h2>1. Limpar Relatório (TXT)</h2>
                 <p>Remove artefatos e a coluna de % de rejeição, mantendo o formato texto.</p>
                 <form action="/api/limpar-txt" method="post" enctype="multipart/form-data">
-                    <input type="file" name="file" accept=".txt" required>
+                    <label for="file-txt" class="custom-file-upload">Escolha o arquivo</label>
+                    <input type="file" id="file-txt" name="file" accept=".txt" required onchange="updateFileName(this, 'name-txt')">
+                    <span id="name-txt" class="file-name">Nenhum arquivo escolhido</span>
+                    
                     <button type="submit" class="btn-blue">Processar TXT</button>
                 </form>
             </div>
@@ -56,11 +65,21 @@ async def pagina_inicial():
                 <h2>2. Transformar em XLSX</h2>
                 <p>Extrai valores e gera uma planilha limpa apenas com os dados dos Hospitais.</p>
                 <form action="/api/gerar-excel" method="post" enctype="multipart/form-data">
-                    <input type="file" name="file" accept=".txt" required>
+                    <label for="file-excel" class="custom-file-upload">Escolha o arquivo</label>
+                    <input type="file" id="file-excel" name="file" accept=".txt" required onchange="updateFileName(this, 'name-excel')">
+                    <span id="name-excel" class="file-name">Nenhum arquivo escolhido</span>
+                    
                     <button type="submit" class="btn-green">Gerar Planilha Excel</button>
                 </form>
             </div>
         </div>
+
+        <script>
+            function updateFileName(input, spanId) {
+                const fileName = input.files.length > 0 ? input.files[0].name : "Nenhum arquivo escolhido";
+                document.getElementById(spanId).textContent = fileName;
+            }
+        </script>
     </body>
     </html>
     """
