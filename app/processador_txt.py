@@ -4,6 +4,16 @@ import re
 
 REGEX_CARACTERES_ILEGAIS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 
+# Cabeçalho completo:  CNES - Nome   Apresentados   Aprovados   % rejeição
+REGEX_CABECALHO_COMPLETO = re.compile(
+    r'(^\s*\d{7}\s+-.+?\s+)(\d+)(\s+)(\d+)\s+(\d{1,3},\d{2})(\s*.*)$'
+)
+# Cabeçalho com a coluna Apresentados ausente:  CNES - Nome   Aprovados   % rejeição
+REGEX_CABECALHO_SEM_APRESENTADOS = re.compile(
+    r'(^\s*\d{7}\s+-.+?\s+)(\d+)\s+(\d{1,3},\d{2})(\s*.*)$'
+)
+
+
 def recalcular_apresentados(match):
     """
     Captura os grupos da linha, recalcula o valor de 'Apresentados' 
@@ -33,6 +43,29 @@ def recalcular_apresentados(match):
     return f"{prefixo}{apres_corrigido}{espacos}{aprov_str}{sufixo}"
 
 
+def reconstruir_apresentados_ausente(match):
+    """
+    Trata cabeçalhos de hospital em que a coluna 'Apresentados' sumiu da linha
+    (sobram só 'Aprovados' e '% rejeição'). Reconstrói 'Apresentados' a partir
+    dessas duas colunas e devolve o cabeçalho no formato completo.
+    """
+    prefixo = match.group(1)
+    aprov_str = match.group(2)
+    rejeicao_str = match.group(3)
+    sufixo = match.group(4)
+
+    aprovados = int(aprov_str)
+    taxa_aprovacao = 100.0 - float(rejeicao_str.replace(',', '.'))
+
+    if taxa_aprovacao > 0:
+        apres_corrigido = str(round((aprovados * 100.0) / taxa_aprovacao))
+    else:
+        # 100% de rejeição: não dá para reconstruir; mantém o único valor disponível
+        apres_corrigido = aprov_str
+
+    return f"{prefixo}{apres_corrigido}    {aprov_str}{sufixo}"
+
+
 def limpar_relatorio_datasus(caminho_entrada, caminho_saida):
 
     with open(caminho_entrada, 'r', encoding='latin-1') as file:
@@ -50,11 +83,10 @@ def limpar_relatorio_datasus(caminho_entrada, caminho_saida):
 
         # 1. Linhas de Hospital (CNES): recalcula Apresentados e remove a % de rejeição
         if re.match(r'^\s*\d{7}\s+-', linha):
-            linha = re.sub(
-                r'(^\s*\d{7}\s+-.+?\s+)(\d+)(\s+)(\d+)\s+(\d{1,3},\d{2})(\s*.*)$',
-                recalcular_apresentados,
-                linha
-            )
+            linha, n = REGEX_CABECALHO_COMPLETO.subn(recalcular_apresentados, linha)
+            if n == 0:
+                # Coluna Apresentados ausente na linha original
+                linha = REGEX_CABECALHO_SEM_APRESENTADOS.sub(reconstruir_apresentados_ausente, linha)
 
         # 2. Linhas de Total: recalcula Apresentados e remove a % de rejeição
         if 'Total' in linha:
