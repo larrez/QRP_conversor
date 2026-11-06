@@ -69,7 +69,20 @@ def reconstruir_apresentados_ausente(match):
 def limpar_relatorio_datasus(caminho_entrada, caminho_saida):
 
     with open(caminho_entrada, 'r', encoding='latin-1') as file:
-        linhas = file.readlines()
+        linhas_brutas = file.readlines()
+
+    # Pré-passo: reconstrói linhas de CNES caso o OneView quebre o nome do hospital em 2 linhas
+    linhas = []
+    i = 0
+    while i < len(linhas_brutas):
+        linha_atual = linhas_brutas[i]
+        # Se começa com CNES (7 dígitos + traço), mas não tem a % de rejeição na mesma linha
+        if re.match(r'^\s*\d{7}\s+-', linha_atual) and not re.search(r'\d{1,3},\d{2}', linha_atual):
+            if i + 1 < len(linhas_brutas):
+                linha_atual = linha_atual.rstrip('\r\n') + ' ' + linhas_brutas[i + 1].lstrip()
+                i += 1
+        linhas.append(linha_atual)
+        i += 1
 
     linhas_formatadas = []
     
@@ -77,15 +90,18 @@ def limpar_relatorio_datasus(caminho_entrada, caminho_saida):
 
         linha = REGEX_CARACTERES_ILEGAIS.sub(' ', linha)
 
+        # Proteção contra exportação acidental com Separator Mode (#) do manual antigo
+        linha = linha.replace('#', ' ')
         linha = linha.replace('%', ' ')
         linha = linha.replace('rejeição', '        ')
-        linha = linha.replace('(www.gnostice.com)', '                  ')
+        
+        # Remove qualquer menção ao domínio ou marca d'água gnostice
+        linha = re.sub(r'\(?www\.gnostice\.com\)?|gnostice', '                  ', linha, flags=re.IGNORECASE)
 
         # 1. Linhas de Hospital (CNES): recalcula Apresentados e remove a % de rejeição
         if re.match(r'^\s*\d{7}\s+-', linha):
             linha, n = REGEX_CABECALHO_COMPLETO.subn(recalcular_apresentados, linha)
             if n == 0:
-                # Coluna Apresentados ausente na linha original
                 linha = REGEX_CABECALHO_SEM_APRESENTADOS.sub(reconstruir_apresentados_ausente, linha)
 
         # 2. Linhas de Total: recalcula Apresentados e remove a % de rejeição
